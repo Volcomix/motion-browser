@@ -39,18 +39,26 @@ class MotionBrowser {
         .filter(target => !target.url().startsWith('chrome://'))
         .map(async target => {
           const page = await target.page()
-          const frames = page.frames()
-          const videos = await Promise.all(
-            frames.map(frame =>
-              frame.$$eval('video', videos =>
-                videos.map(video => video.src).filter(src => !!src),
-              ),
-            ),
-          )
-          return { url: target.url(), videos: [].concat(...videos) }
+          return {
+            url: target.url(),
+            title: await page.title(),
+            videos: await this.getVideos(page),
+          }
         }),
     )
     console.log(JSON.stringify(result))
+  }
+
+  async getVideos(page) {
+    const frames = page.frames()
+    const videos = await Promise.all(
+      frames.map(frame =>
+        frame.$$eval('video', videos =>
+          videos.map(video => video.src).filter(src => !!src),
+        ),
+      ),
+    )
+    return [].concat(...videos)
   }
 }
 
