@@ -16,6 +16,7 @@ class MotionBrowser {
     this.browser = await puppeteer.launch({
       executablePath,
       appMode: true,
+      args: ['--no-default-browser-check'],
     })
   }
 
