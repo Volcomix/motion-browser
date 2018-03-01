@@ -34,14 +34,15 @@ class MotionBrowser {
 
   async parseTargets() {
     const targets = await this.browser.targets()
-    const videos = await Promise.all(
+    let videoPages = await Promise.all(
       targets
         .filter(target => target.type() === 'page')
         .filter(target => !target.url().startsWith(viewerUrl))
         .filter(target => !target.url().startsWith('chrome://'))
-        .map(target => this.parseTarget(target)),
+        .map(target => this.parseTarget(target))
     )
-    await this.updateVideos(videos)
+    videoPages = videoPages.filter(({ videos }) => videos.length > 0)
+    await this.updateVideos(videoPages)
   }
 
   async parseTarget(target) {
@@ -65,12 +66,12 @@ class MotionBrowser {
     return [].concat(...videos)
   }
 
-  async updateVideos(videos) {
+  async updateVideos(videoPages) {
     const pages = await this.browser.pages()
     const viewerPage = pages[0]
     await viewerPage.evaluate(
-      videos => window.renderMotionViewer(videos),
-      videos,
+      videoPages => window.renderMotionViewer(videoPages),
+      videoPages,
     )
   }
 }
