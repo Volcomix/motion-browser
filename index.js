@@ -66,8 +66,8 @@ class MotionBrowser {
     const frames = page.frames()
     const videos = await Promise.all(
       frames.map(frame =>
-        frame.$$eval('video, video source', videos =>
-          videos.map(video => video.src).filter(src => !!src),
+        frame.$$eval('video[src], video source[src]', videos =>
+          videos.map(video => video.src),
         ),
       ),
     )
