@@ -31,18 +31,24 @@ function processor(video) {
       console.log(this.canvas)
       this.context = this.canvas.getContext('2d')
       console.log(this.context)
-      this.video.addEventListener('play', this.process.bind(this))
+
+      this.diffCanvas = document.createElement('canvas')
+      this.diffContext = this.diffCanvas.getContext('2d')
+
+      this.video.addEventListener('play', this.startTimer.bind(this))
       if (this.isPlaying) {
         console.log('Video is playing')
-        this.process()
+        this.startTimer()
       }
     }
 
-    process() {
-      this.width = this.video.videoWidth
-      this.height = this.video.videoHeight
+    startTimer() {
+      this.width = 64
+      this.height = 48
       this.canvas.width = this.width
       this.canvas.height = this.height
+      this.diffCanvas.width = this.width
+      this.diffCanvas.height = this.height
       console.log('Processing video', this.width, this.height)
       this.timerCallback()
     }
@@ -52,26 +58,18 @@ function processor(video) {
         return
       }
       this.computeFrame()
-      setTimeout(() => this.timerCallback(), 16) // roughly 60 frames per second
+      setTimeout(() => this.timerCallback(), 100)
     }
 
     computeFrame() {
-      this.context.drawImage(this.video, 0, 0, this.width, this.height)
-      var frame = this.context.getImageData(0, 0, this.width, this.height)
-      var l = frame.data.length / 4
+      this.diffContext.globalCompositeOperation = 'difference'
+      this.diffContext.drawImage(this.video, 0, 0, this.width, this.height)
 
-      for (var i = 0; i < l; i++) {
-        var grey =
-          (frame.data[i * 4 + 0] +
-            frame.data[i * 4 + 1] +
-            frame.data[i * 4 + 2]) /
-          3
-
-        frame.data[i * 4 + 0] = grey
-        frame.data[i * 4 + 1] = grey
-        frame.data[i * 4 + 2] = grey
-      }
+      const frame = this.diffContext.getImageData(0, 0, this.width, this.height)
       this.context.putImageData(frame, 0, 0)
+
+      this.diffContext.globalCompositeOperation = 'source-over'
+      this.diffContext.drawImage(this.video, 0, 0, this.width, this.height)
     }
   }
 
