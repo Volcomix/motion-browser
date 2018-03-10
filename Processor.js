@@ -23,8 +23,9 @@ function processor(video) {
         this.canvas.id = canvasId
         this.canvas.style.position = 'fixed'
         this.canvas.style.bottom = '0'
-        this.canvas.style['z-index'] = 99999
         this.canvas.style.width = '400px'
+        this.canvas.style['z-index'] = 99999
+        this.canvas.style['pointer-events'] = 'none'
         document.body.appendChild(this.canvas)
         console.log('Processor canvas created')
       }
