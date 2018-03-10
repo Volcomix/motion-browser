@@ -20,7 +20,11 @@ function processor(video) {
       this.canvas = document.querySelector(`canvas#${canvasId}`)
       if (!this.canvas) {
         this.canvas = document.createElement('canvas')
-        this.canvas.setAttribute('id', canvasId)
+        this.canvas.id = canvasId
+        this.canvas.style.position = 'fixed'
+        this.canvas.style.bottom = '0'
+        this.canvas.style['z-index'] = 99999
+        this.canvas.style.width = '400px'
         document.body.appendChild(this.canvas)
         console.log('Processor canvas created')
       }
