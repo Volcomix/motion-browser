@@ -5,9 +5,10 @@ function processor(video) {
     constructor(video) {
       this.video = video
 
-      this.width = 64
-      this.height = 48
-      this.pixelThreshold = 32
+      this.width = 256
+      this.height = 192
+      this.blockSize = 16
+      this.searchArea = 7
     }
 
     get isPlaying() {
@@ -37,8 +38,8 @@ function processor(video) {
       this.context = this.canvas.getContext('2d')
       console.log(this.context)
 
-      this.diffCanvas = document.createElement('canvas')
-      this.diffContext = this.diffCanvas.getContext('2d')
+      this.referenceCanvas = document.createElement('canvas')
+      this.referenceContext = this.referenceCanvas.getContext('2d')
 
       this.video.addEventListener('play', this.startTimer.bind(this))
       if (this.isPlaying) {
@@ -50,8 +51,8 @@ function processor(video) {
     startTimer() {
       this.canvas.width = this.width
       this.canvas.height = this.height
-      this.diffCanvas.width = this.width
-      this.diffCanvas.height = this.height
+      this.referenceCanvas.width = this.width
+      this.referenceCanvas.height = this.height
       console.log('Processing video', this.width, this.height)
       this.timerCallback()
     }
@@ -65,69 +66,113 @@ function processor(video) {
     }
 
     computeFrame() {
-      this.diffContext.globalCompositeOperation = 'difference'
-      this.diffContext.drawImage(this.video, 0, 0, this.width, this.height)
-
-      const frame = this.diffContext.getImageData(0, 0, this.width, this.height)
-      const box = this.processDiff(frame)
-      this.context.putImageData(frame, 0, 0)
-      this.drawBox(box)
-
-      this.diffContext.globalCompositeOperation = 'source-over'
-      this.diffContext.drawImage(this.video, 0, 0, this.width, this.height)
+      this.context.drawImage(this.video, 0, 0, this.width, this.height)
+      const currentFrame = this.context.getImageData(
+        0,
+        0,
+        this.width,
+        this.height,
+      )
+      const referenceFrame = this.referenceContext.getImageData(
+        0,
+        0,
+        this.width,
+        this.height,
+      )
+      const blocks = this.processMotion(currentFrame, referenceFrame)
+      this.drawBlocks(blocks)
+      this.referenceContext.putImageData(currentFrame, 0, 0)
     }
 
-    processDiff(frame) {
-      const rgba = frame.data
-      let score = 0
-      const box = this.initBox
-      for (let i = 0; i < rgba.length; i += 4) {
-        const diff = this.processPixelDiff(rgba, i)
-        if (diff >= this.pixelThreshold) {
-          score++
-          this.updateBox(box, i / 4)
+    processMotion(currentFrame, referenceFrame) {
+      for (let i = 0; i < currentFrame.data.length; i += 4) {
+        this.greyScale(currentFrame.data, i)
+      }
+      const blocks = []
+      const around = [
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+        { x: 1, y: 0 },
+        { x: 1, y: -1 },
+        { x: 0, y: -1 },
+        { x: -1, y: -1 },
+        { x: -1, y: 0 },
+        { x: -1, y: 1 },
+      ]
+      const xMax = this.width - this.blockSize
+      const yMax = this.height - this.blockSize
+      const blockSize2 = this.blockSize * this.blockSize
+      for (
+        let xBlock = this.blockSize;
+        xBlock < xMax;
+        xBlock += this.blockSize
+      ) {
+        for (
+          let yBlock = this.blockSize;
+          yBlock < yMax;
+          yBlock += this.blockSize
+        ) {
+          let location
+          let stepSize = 4
+          let x = xBlock
+          let y = yBlock
+          for (let stepSize = 4; stepSize >= 1; stepSize /= 2) {
+            location = around.reduce(
+              (best, location) => {
+                const xl = x + stepSize * location.x
+                const yl = y + stepSize * location.y
+                let cost = 0
+                for (let i = 0; i < this.blockSize; i++) {
+                  for (let j = 0; j < this.blockSize; j++) {
+                    const currentIndex = 4 * (x + i + (y + j) * this.width)
+                    const referenceIndex = 4 * (xl + i + (yl + j) * this.width)
+                    cost += Math.abs(
+                      currentFrame.data[currentIndex] -
+                        referenceFrame.data[referenceIndex],
+                    )
+                  }
+                }
+                cost /= blockSize2
+                if (cost < best.cost) {
+                  best.cost = cost
+                  best.location = { x: xl, y: yl }
+                }
+                return best
+              },
+              { cost: Infinity, location: undefined },
+            ).location
+            x = location.x
+            y = location.y
+          }
+          blocks.push({ xBlock, yBlock, x, y })
         }
       }
-      return box.xMax > -1 ? box : undefined
+      return blocks
     }
 
-    processPixelDiff(rgba, i) {
-      const diff = rgba[i] * 0.3 + rgba[i + 1] * 0.6 + rgba[i + 2] * 0.1
-      rgba[i] = 0
-      rgba[i + 1] = Math.min(255, diff * 255 / this.pixelThreshold)
-      rgba[i + 2] = 0
-      return diff
+    greyScale(rgba, i) {
+      const grey =
+        rgba[i] * 0.2126 + rgba[i + 1] * 0.7152 + rgba[i + 2] * 0.0722
+      rgba[i] = grey
+      rgba[i + 1] = grey
+      rgba[i + 2] = grey
+      return grey
     }
 
-    get initBox() {
-      return {
-        xMin: this.width + 1,
-        xMax: -1,
-        yMin: this.height + 1,
-        yMax: -1,
+    drawBlocks(blocks) {
+      for (let { xBlock, yBlock, x, y } of blocks) {
+        this.context.strokeStyle = 'green'
+        this.context.strokeRect(xBlock, yBlock, this.blockSize, this.blockSize)
+        this.context.beginPath()
+        this.context.strokeStyle = 'red'
+        this.context.moveTo(
+          xBlock + this.blockSize / 2,
+          yBlock + this.blockSize / 2,
+        )
+        this.context.lineTo(x + this.blockSize / 2, y + this.blockSize / 2)
+        this.context.stroke()
       }
-    }
-
-    updateBox(box, pixelIndex) {
-      const x = pixelIndex % this.width
-      const y = Math.floor(pixelIndex / this.width)
-      box.xMin = Math.min(box.xMin, x)
-      box.xMax = Math.max(box.xMax, x)
-      box.yMin = Math.min(box.yMin, y)
-      box.yMax = Math.max(box.yMax, y)
-    }
-
-    drawBox(box) {
-      if (!box) {
-        return
-      }
-      this.context.strokeStyle = 'white'
-      this.context.strokeRect(
-        box.xMin + 0.5,
-        box.yMin + 0.5,
-        box.xMax - box.xMin,
-        box.yMax - box.yMin,
-      )
     }
   }
 
