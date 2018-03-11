@@ -25,8 +25,10 @@ function processor(video) {
       this.width = 32 * this.blockSize
       this.height = 24 * this.blockSize
       this.searchArea = 7
-      this.period = 100
       this.threshold = 14
+
+      /** 0 to requestAnimationFrame */
+      this.period = 0
 
       this.xMax = this.width - this.blockSize
       this.yMax = this.height - this.blockSize
@@ -90,7 +92,11 @@ function processor(video) {
         return
       }
       this.computeFrame()
-      setTimeout(() => this.timerCallback(), this.period)
+      if (this.period) {
+        setTimeout(() => this.timerCallback(), this.period)
+      } else {
+        requestAnimationFrame(() => this.timerCallback())
+      }
     }
 
     computeFrame() {
