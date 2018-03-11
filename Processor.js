@@ -128,14 +128,14 @@ function processor(video) {
       let yRef = yCur
       const cost = this.getCost(curFrame, xCur, yCur, refFrame, xRef, yRef)
       if (cost < this.threshold) {
-        return { xCur, yCur, xRef, yRef }
+        return { xCur, yCur, xRef, yRef, hasMoved: false }
       }
       for (let stepSize = 4; stepSize >= 1; stepSize /= 2) {
         const l = this.searchLocation(stepSize, xRef, yRef, curFrame, refFrame)
         xRef = l.x
         yRef = l.y
       }
-      return { xCur, yCur, xRef, yRef }
+      return { xCur, yCur, xRef, yRef, hasMoved: true }
     }
 
     searchLocation(stepSize, xCur, yCur, curFrame, refFrame) {
@@ -167,14 +167,16 @@ function processor(video) {
     }
 
     drawBlocks(blocks) {
-      for (let { xCur, yCur, xRef, yRef } of blocks) {
-        this.ctx.strokeStyle = 'green'
-        this.ctx.strokeRect(xCur, yCur, this.blockSize, this.blockSize)
-        this.ctx.beginPath()
-        this.ctx.strokeStyle = 'red'
-        this.ctx.moveTo(xCur + this.halfBlockSize, yCur + this.halfBlockSize)
-        this.ctx.lineTo(xRef + this.halfBlockSize, yRef + this.halfBlockSize)
-        this.ctx.stroke()
+      for (let { xCur, yCur, xRef, yRef, hasMoved } of blocks) {
+        if (hasMoved) {
+          this.ctx.strokeStyle = 'green'
+          this.ctx.strokeRect(xCur, yCur, this.blockSize, this.blockSize)
+          this.ctx.beginPath()
+          this.ctx.strokeStyle = 'red'
+          this.ctx.moveTo(xCur + this.halfBlockSize, yCur + this.halfBlockSize)
+          this.ctx.lineTo(xRef + this.halfBlockSize, yRef + this.halfBlockSize)
+          this.ctx.stroke()
+        }
       }
     }
   }
