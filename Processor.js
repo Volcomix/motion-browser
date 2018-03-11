@@ -169,10 +169,10 @@ function processor(video) {
     drawBlocks(blocks) {
       for (let { xCur, yCur, xRef, yRef, hasMoved } of blocks) {
         if (hasMoved) {
-          this.ctx.strokeStyle = 'green'
+          this.ctx.strokeStyle = '#0f0'
           this.ctx.strokeRect(xCur, yCur, this.blockSize, this.blockSize)
           this.ctx.beginPath()
-          this.ctx.strokeStyle = 'red'
+          this.ctx.strokeStyle = '#f00'
           this.ctx.moveTo(xCur + this.halfBlockSize, yCur + this.halfBlockSize)
           this.ctx.lineTo(xRef + this.halfBlockSize, yRef + this.halfBlockSize)
           this.ctx.stroke()
