@@ -1,14 +1,34 @@
 function processor(video) {
   const canvasId = 'motion-browser-processor'
 
+  const around = [
+    { x: 0, y: 0 },
+    { x: 0, y: 1 },
+    { x: 1, y: 1 },
+    { x: 1, y: 0 },
+    { x: 1, y: -1 },
+    { x: 0, y: -1 },
+    { x: -1, y: -1 },
+    { x: -1, y: 0 },
+    { x: -1, y: 1 },
+  ]
+
   class Processor {
     constructor(video) {
-      this.video = video
+      if (video.tagName === 'SOURCE') {
+        this.video = video.closest('video')
+      } else {
+        this.video = video
+      }
 
       this.width = 256
       this.height = 192
       this.blockSize = 16
       this.searchArea = 7
+      this.period = 100
+
+      this.blockSize2 = this.blockSize * this.blockSize
+      this.halfBlockSize = this.blockSize / 2
     }
 
     get isPlaying() {
@@ -21,25 +41,18 @@ function processor(video) {
     }
 
     doLoad() {
+      this.video.setAttribute('crossorigin', 'anonymous')
       console.log(this.video)
       this.canvas = document.querySelector(`canvas#${canvasId}`)
       if (!this.canvas) {
-        this.canvas = document.createElement('canvas')
-        this.canvas.id = canvasId
-        this.canvas.style.position = 'fixed'
-        this.canvas.style.bottom = '0'
-        this.canvas.style.width = '400px'
-        this.canvas.style['z-index'] = 99999
-        this.canvas.style['pointer-events'] = 'none'
-        document.body.appendChild(this.canvas)
-        console.log('Processor canvas created')
+        this.createCanvas()
       }
       console.log(this.canvas)
-      this.context = this.canvas.getContext('2d')
-      console.log(this.context)
+      this.ctx = this.canvas.getContext('2d')
+      console.log(this.ctx)
 
-      this.referenceCanvas = document.createElement('canvas')
-      this.referenceContext = this.referenceCanvas.getContext('2d')
+      this.refCanvas = document.createElement('canvas')
+      this.refCtx = this.refCanvas.getContext('2d')
 
       this.video.addEventListener('play', this.startTimer.bind(this))
       if (this.isPlaying) {
@@ -48,11 +61,23 @@ function processor(video) {
       }
     }
 
+    createCanvas() {
+      this.canvas = document.createElement('canvas')
+      this.canvas.id = canvasId
+      this.canvas.style.position = 'fixed'
+      this.canvas.style.bottom = '0'
+      this.canvas.style.width = '400px'
+      this.canvas.style['z-index'] = 99999
+      this.canvas.style['pointer-events'] = 'none'
+      document.body.appendChild(this.canvas)
+      console.log('Processor canvas created')
+    }
+
     startTimer() {
       this.canvas.width = this.width
       this.canvas.height = this.height
-      this.referenceCanvas.width = this.width
-      this.referenceCanvas.height = this.height
+      this.refCanvas.width = this.width
+      this.refCanvas.height = this.height
       console.log('Processing video', this.width, this.height)
       this.timerCallback()
     }
@@ -62,47 +87,25 @@ function processor(video) {
         return
       }
       this.computeFrame()
-      setTimeout(() => this.timerCallback(), 100)
+      setTimeout(() => this.timerCallback(), this.period)
     }
 
     computeFrame() {
-      this.context.drawImage(this.video, 0, 0, this.width, this.height)
-      const currentFrame = this.context.getImageData(
-        0,
-        0,
-        this.width,
-        this.height,
-      )
-      const referenceFrame = this.referenceContext.getImageData(
-        0,
-        0,
-        this.width,
-        this.height,
-      )
-      const blocks = this.processMotion(currentFrame, referenceFrame)
+      this.ctx.drawImage(this.video, 0, 0, this.width, this.height)
+      const curFrame = this.ctx.getImageData(0, 0, this.width, this.height)
+      const refFrame = this.refCtx.getImageData(0, 0, this.width, this.height)
+      const blocks = this.processMotion(curFrame, refFrame)
       this.drawBlocks(blocks)
-      this.referenceContext.putImageData(currentFrame, 0, 0)
+      this.refCtx.putImageData(curFrame, 0, 0)
     }
 
-    processMotion(currentFrame, referenceFrame) {
-      for (let i = 0; i < currentFrame.data.length; i += 4) {
-        this.greyScale(currentFrame.data, i)
+    processMotion(curFrame, refFrame) {
+      for (let i = 0; i < curFrame.data.length; i += 4) {
+        this.greyScale(curFrame.data, i)
       }
       const blocks = []
-      const around = [
-        { x: 0, y: 0 },
-        { x: 0, y: 1 },
-        { x: 1, y: 1 },
-        { x: 1, y: 0 },
-        { x: 1, y: -1 },
-        { x: 0, y: -1 },
-        { x: -1, y: -1 },
-        { x: -1, y: 0 },
-        { x: -1, y: 1 },
-      ]
       const xMax = this.width - this.blockSize
       const yMax = this.height - this.blockSize
-      const blockSize2 = this.blockSize * this.blockSize
       for (
         let xBlock = this.blockSize;
         xBlock < xMax;
@@ -125,15 +128,14 @@ function processor(video) {
                 let cost = 0
                 for (let i = 0; i < this.blockSize; i++) {
                   for (let j = 0; j < this.blockSize; j++) {
-                    const currentIndex = 4 * (x + i + (y + j) * this.width)
-                    const referenceIndex = 4 * (xl + i + (yl + j) * this.width)
+                    const curIdx = 4 * (x + i + (y + j) * this.width)
+                    const refIdx = 4 * (xl + i + (yl + j) * this.width)
                     cost += Math.abs(
-                      currentFrame.data[currentIndex] -
-                        referenceFrame.data[referenceIndex],
+                      curFrame.data[curIdx] - refFrame.data[refIdx],
                     )
                   }
                 }
-                cost /= blockSize2
+                cost /= this.blockSize2
                 if (cost < best.cost) {
                   best.cost = cost
                   best.location = { x: xl, y: yl }
@@ -161,17 +163,14 @@ function processor(video) {
     }
 
     drawBlocks(blocks) {
-      for (let { xBlock, yBlock, x, y } of blocks) {
-        this.context.strokeStyle = 'green'
-        this.context.strokeRect(xBlock, yBlock, this.blockSize, this.blockSize)
-        this.context.beginPath()
-        this.context.strokeStyle = 'red'
-        this.context.moveTo(
-          xBlock + this.blockSize / 2,
-          yBlock + this.blockSize / 2,
-        )
-        this.context.lineTo(x + this.blockSize / 2, y + this.blockSize / 2)
-        this.context.stroke()
+      for (let { xBlock: x1, yBlock: y1, x: x2, y: y2 } of blocks) {
+        this.ctx.strokeStyle = 'green'
+        this.ctx.strokeRect(x1, y1, this.blockSize, this.blockSize)
+        this.ctx.beginPath()
+        this.ctx.strokeStyle = 'red'
+        this.ctx.moveTo(x1 + this.halfBlockSize, y1 + this.halfBlockSize)
+        this.ctx.lineTo(x2 + this.halfBlockSize, y2 + this.halfBlockSize)
+        this.ctx.stroke()
       }
     }
   }
