@@ -173,7 +173,7 @@ function processor(video) {
     }
 
     drawBlocks(blocks) {
-      for (let { xCur, yCur, xRef, yRef, hasMoved } of blocks) {
+      blocks.forEach(({ xCur, yCur, xRef, yRef, hasMoved }) => {
         if (hasMoved) {
           this.ctx.strokeStyle = '#0f0'
           this.ctx.strokeRect(xCur, yCur, this.blockSize, this.blockSize)
@@ -183,7 +183,7 @@ function processor(video) {
           this.ctx.lineTo(xRef + this.halfBlockSize, yRef + this.halfBlockSize)
           this.ctx.stroke()
         }
-      }
+      })
     }
   }
 
