@@ -27,6 +27,8 @@ function processor(video) {
       this.searchArea = 7
       this.period = 100
 
+      this.xMax = this.width - this.blockSize
+      this.yMax = this.height - this.blockSize
       this.blockSize2 = this.blockSize * this.blockSize
       this.halfBlockSize = this.blockSize / 2
     }
@@ -104,72 +106,75 @@ function processor(video) {
         this.greyScale(curFrame.data, i)
       }
       const blocks = []
-      const xMax = this.width - this.blockSize
-      const yMax = this.height - this.blockSize
-      for (
-        let xBlock = this.blockSize;
-        xBlock < xMax;
-        xBlock += this.blockSize
-      ) {
-        for (
-          let yBlock = this.blockSize;
-          yBlock < yMax;
-          yBlock += this.blockSize
-        ) {
-          let location
-          let stepSize = 4
-          let x = xBlock
-          let y = yBlock
-          for (let stepSize = 4; stepSize >= 1; stepSize /= 2) {
-            location = around.reduce(
-              (best, location) => {
-                const xl = x + stepSize * location.x
-                const yl = y + stepSize * location.y
-                let cost = 0
-                for (let i = 0; i < this.blockSize; i++) {
-                  for (let j = 0; j < this.blockSize; j++) {
-                    const curIdx = 4 * (x + i + (y + j) * this.width)
-                    const refIdx = 4 * (xl + i + (yl + j) * this.width)
-                    cost += Math.abs(
-                      curFrame.data[curIdx] - refFrame.data[refIdx],
-                    )
-                  }
-                }
-                cost /= this.blockSize2
-                if (cost < best.cost) {
-                  best.cost = cost
-                  best.location = { x: xl, y: yl }
-                }
-                return best
-              },
-              { cost: Infinity, location: undefined },
-            ).location
-            x = location.x
-            y = location.y
-          }
-          blocks.push({ xBlock, yBlock, x, y })
+      for (let x = this.blockSize; x < this.xMax; x += this.blockSize) {
+        for (let y = this.blockSize; y < this.yMax; y += this.blockSize) {
+          const block = this.searchMatchingBlock(x, y, curFrame, refFrame)
+          blocks.push(block)
         }
       }
       return blocks
     }
 
-    greyScale(rgba, i) {
-      const grey =
-        rgba[i] * 0.2126 + rgba[i + 1] * 0.7152 + rgba[i + 2] * 0.0722
-      rgba[i] = grey
-      rgba[i + 1] = grey
-      rgba[i + 2] = grey
-      return grey
+    greyScale(pxl, i) {
+      const grey = pxl[i] * 0.2126 + pxl[i + 1] * 0.7152 + pxl[i + 2] * 0.0722
+      pxl[i] = grey
+      pxl[i + 1] = grey
+      pxl[i + 2] = grey
+    }
+
+    searchMatchingBlock(xCur, yCur, curFrame, refFrame) {
+      let xRef = xCur
+      let yRef = yCur
+      for (let stepSize = 4; stepSize >= 1; stepSize /= 2) {
+        const loc = this.searchLocation(
+          stepSize,
+          xRef,
+          yRef,
+          curFrame,
+          refFrame,
+        )
+        xRef = loc.x
+        yRef = loc.y
+      }
+      return { xCur, yCur, xRef, yRef }
+    }
+
+    searchLocation(stepSize, xCur, yCur, curFrame, refFrame) {
+      return around.reduce(
+        (best, location) => {
+          const xRef = xCur + stepSize * location.x
+          const yRef = yCur + stepSize * location.y
+          const cost = this.getCost(curFrame, xCur, yCur, refFrame, xRef, yRef)
+          if (cost < best.cost) {
+            best.cost = cost
+            best.location = { x: xRef, y: yRef }
+          }
+          return best
+        },
+        { cost: Infinity, location: undefined },
+      ).location
+    }
+
+    getCost(curFrame, xCur, yCur, refFrame, xRef, yRef) {
+      let cost = 0
+      for (let x = 0; x < this.blockSize; x++) {
+        for (let y = 0; y < this.blockSize; y++) {
+          const curIdx = 4 * (xCur + x + (yCur + y) * this.width)
+          const refIdx = 4 * (xRef + x + (yRef + y) * this.width)
+          cost += Math.abs(curFrame.data[curIdx] - refFrame.data[refIdx])
+        }
+      }
+      return cost / this.blockSize2
     }
 
     drawBlocks(blocks) {
-      for (let { xBlock: x1, yBlock: y1, x: x2, y: y2 } of blocks) {
+      for (let { xCur, yCur, xRef, yRef } of blocks) {
         this.ctx.strokeStyle = 'green'
-        this.ctx.strokeRect(x1, y1, this.blockSize, this.blockSize)
+        this.ctx.strokeRect(xCur, yCur, this.blockSize, this.blockSize)
         this.ctx.beginPath()
         this.ctx.strokeStyle = 'red'
-        this.ctx.moveTo(x1 + this.halfBlockSize, y1 + this.halfBlockSize)
-        this.ctx.lineTo(x2 + this.halfBlockSize, y2 + this.halfBlockSize)
+        this.ctx.moveTo(xCur + this.halfBlockSize, yCur + this.halfBlockSize)
+        this.ctx.lineTo(xRef + this.halfBlockSize, yRef + this.halfBlockSize)
         this.ctx.stroke()
       }
     }
