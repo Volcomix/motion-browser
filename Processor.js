@@ -26,6 +26,7 @@ function processor(video) {
       this.blockSize = 16
       this.searchArea = 7
       this.period = 100
+      this.threshold = 14
 
       this.xMax = this.width - this.blockSize
       this.yMax = this.height - this.blockSize
@@ -125,16 +126,14 @@ function processor(video) {
     searchMatchingBlock(xCur, yCur, curFrame, refFrame) {
       let xRef = xCur
       let yRef = yCur
+      const cost = this.getCost(curFrame, xCur, yCur, refFrame, xRef, yRef)
+      if (cost < this.threshold) {
+        return { xCur, yCur, xRef, yRef }
+      }
       for (let stepSize = 4; stepSize >= 1; stepSize /= 2) {
-        const loc = this.searchLocation(
-          stepSize,
-          xRef,
-          yRef,
-          curFrame,
-          refFrame,
-        )
-        xRef = loc.x
-        yRef = loc.y
+        const l = this.searchLocation(stepSize, xRef, yRef, curFrame, refFrame)
+        xRef = l.x
+        yRef = l.y
       }
       return { xCur, yCur, xRef, yRef }
     }
