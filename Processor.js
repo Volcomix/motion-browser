@@ -21,9 +21,9 @@ function processor(video) {
         this.video = video
       }
 
-      this.width = 256
-      this.height = 192
       this.blockSize = 16
+      this.width = 32 * this.blockSize
+      this.height = 24 * this.blockSize
       this.searchArea = 7
       this.period = 100
       this.threshold = 14
