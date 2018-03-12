@@ -102,12 +102,12 @@ function processor(video) {
       this.ctx.drawImage(this.video, 0, 0, this.width, this.height)
       const curFrame = this.ctx.getImageData(0, 0, this.width, this.height)
       const refFrame = this.refCtx.getImageData(0, 0, this.width, this.height)
-      const blocks = this.processMotion(curFrame, refFrame)
+      const blocks = this.searchMatchingBlocks(curFrame, refFrame)
       this.drawBlocks(blocks)
       this.refCtx.putImageData(curFrame, 0, 0)
     }
 
-    processMotion(curFrame, refFrame) {
+    searchMatchingBlocks(curFrame, refFrame) {
       for (let i = 0; i < curFrame.data.length; i += 4) {
         this.greyScale(curFrame.data, i)
       }
