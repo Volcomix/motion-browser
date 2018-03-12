@@ -2,7 +2,6 @@ function processor(video) {
   const canvasId = 'motion-browser-processor'
 
   const around = [
-    { x: 0, y: 0 },
     { x: 0, y: 1 },
     { x: 1, y: 1 },
     { x: 1, y: 0 },
@@ -132,12 +131,11 @@ function processor(video) {
     searchMatchingBlock(xCur, yCur, curFrame, refFrame) {
       let xRef = xCur
       let yRef = yCur
-      const cost = this.getCost(curFrame, xCur, yCur, refFrame, xRef, yRef)
-      if (cost < this.threshold) {
-        return { xCur, yCur, xRef, yRef, hasMoved: false }
-      }
       for (let stepSize = 4; stepSize >= 1; stepSize /= 2) {
         const l = this.searchLocation(stepSize, xRef, yRef, curFrame, refFrame)
+        if (!l) {
+          return { xCur, yCur, xRef, yRef, hasMoved: false }
+        }
         xRef = l.x
         yRef = l.y
       }
@@ -145,6 +143,10 @@ function processor(video) {
     }
 
     searchLocation(stepSize, xCur, yCur, curFrame, refFrame) {
+      const cost = this.getCost(curFrame, xCur, yCur, refFrame, xCur, yCur)
+      if (stepSize === 4 && cost < this.threshold) {
+        return
+      }
       return around.reduce(
         (best, location) => {
           const xRef = xCur + stepSize * location.x
@@ -156,7 +158,7 @@ function processor(video) {
           }
           return best
         },
-        { cost: Infinity, location: undefined },
+        { cost, location: { x: xCur, y: yCur } },
       ).location
     }
 
