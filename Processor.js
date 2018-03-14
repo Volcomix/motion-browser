@@ -25,6 +25,9 @@ function processor(video) {
       this.height = 24 * this.blockSize
       this.searchArea = 7
       this.threshold = 14
+      this.showBlocks = true
+      this.showSpeed = false
+      this.showLabels = true
 
       /** 0 to requestAnimationFrame */
       this.period = 0
@@ -103,6 +106,7 @@ function processor(video) {
       const curFrame = this.ctx.getImageData(0, 0, this.width, this.height)
       const refFrame = this.refCtx.getImageData(0, 0, this.width, this.height)
       const blocks = this.searchMatchingBlocks(curFrame, refFrame)
+      const labelsCount = this.labelBlocks(blocks)
       this.drawBlocks(blocks)
       this.refCtx.putImageData(curFrame, 0, 0)
     }
@@ -112,8 +116,8 @@ function processor(video) {
         this.greyScale(curFrame.data, i)
       }
       const blocks = []
-      for (let x = this.blockSize; x < this.xMax; x += this.blockSize) {
-        for (let y = this.blockSize; y < this.yMax; y += this.blockSize) {
+      for (let y = this.blockSize; y < this.yMax; y += this.blockSize) {
+        for (let x = this.blockSize; x < this.xMax; x += this.blockSize) {
           const block = this.searchMatchingBlock(x, y, curFrame, refFrame)
           blocks.push(block)
         }
@@ -164,8 +168,8 @@ function processor(video) {
 
     getCost(curFrame, xCur, yCur, refFrame, xRef, yRef) {
       let cost = 0
-      for (let x = 0; x < this.blockSize; x++) {
-        for (let y = 0; y < this.blockSize; y++) {
+      for (let y = 0; y < this.blockSize; y++) {
+        for (let x = 0; x < this.blockSize; x++) {
           const curIdx = 4 * (xCur + x + (yCur + y) * this.width)
           const refIdx = 4 * (xRef + x + (yRef + y) * this.width)
           cost += Math.abs(curFrame.data[curIdx] - refFrame.data[refIdx])
@@ -174,18 +178,78 @@ function processor(video) {
       return cost / this.blockSize2
     }
 
+    labelBlocks(blocks) {
+      const blocksWidth = this.xMax / this.blockSize - 1
+      const blocksHeight = this.yMax / this.blockSize - 1
+      let label = 1
+      const queue = []
+      for (let y = 0; y < blocksHeight; y++) {
+        for (let x = 0; x < blocksWidth; x++) {
+          const current = blocks[x + y * blocksWidth]
+          if (!current.hasMoved || current.label) {
+            continue
+          }
+          current.label = label
+          queue.push(current)
+          while (queue.length) {
+            const block = queue.shift()
+            const x = block.xCur / this.blockSize - 1
+            const y = block.yCur / this.blockSize - 1
+            around.forEach(location => {
+              const xNeighbor = x + location.x
+              if (xNeighbor < 0 || xNeighbor >= blocksWidth) {
+                return
+              }
+              const yNeighbor = y + location.y
+              if (yNeighbor < 0 || yNeighbor >= blocksHeight) {
+                return
+              }
+              const neighbor = blocks[xNeighbor + yNeighbor * blocksWidth]
+              if (neighbor.hasMoved && !neighbor.label) {
+                neighbor.label = label
+                queue.push(neighbor)
+              }
+            })
+          }
+          label++
+        }
+      }
+    }
+
     drawBlocks(blocks) {
-      blocks.forEach(({ xCur, yCur, xRef, yRef, hasMoved }) => {
-        if (hasMoved) {
-          this.ctx.strokeStyle = '#0f0'
-          this.ctx.strokeRect(xCur, yCur, this.blockSize, this.blockSize)
-          this.ctx.beginPath()
-          this.ctx.strokeStyle = '#f00'
-          this.ctx.moveTo(xCur + this.halfBlockSize, yCur + this.halfBlockSize)
-          this.ctx.lineTo(xRef + this.halfBlockSize, yRef + this.halfBlockSize)
-          this.ctx.stroke()
+      blocks.forEach(block => {
+        if (!block.hasMoved) {
+          return
+        }
+        if (this.showBlocks) {
+          this.drawBlock(block)
+        }
+        if (this.showSpeed) {
+          this.drawSpeed(block)
+        }
+        if (this.showLabels) {
+          this.drawLabel(block)
         }
       })
+    }
+
+    drawBlock({ xCur, yCur }) {
+      this.ctx.strokeStyle = '#0f0'
+      this.ctx.strokeRect(xCur, yCur, this.blockSize, this.blockSize)
+      this.ctx.beginPath()
+    }
+
+    drawSpeed({ xCur, yCur, xRef, yRef }) {
+      this.ctx.strokeStyle = '#f00'
+      this.ctx.moveTo(xCur + this.halfBlockSize, yCur + this.halfBlockSize)
+      this.ctx.lineTo(xRef + this.halfBlockSize, yRef + this.halfBlockSize)
+      this.ctx.stroke()
+    }
+
+    drawLabel({ xCur, yCur, label }) {
+      this.ctx.font = '8px arial'
+      this.ctx.fillStyle = '#f00'
+      this.ctx.fillText(label, xCur + 2, yCur + this.halfBlockSize + 4)
     }
   }
 
