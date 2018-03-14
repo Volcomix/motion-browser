@@ -31,7 +31,7 @@ function processor(video) {
       this.showLabels = true
 
       /** 0 to requestAnimationFrame */
-      this.period = 0
+      this.period = 34
 
       this.xMax = this.width - this.blockSize
       this.yMax = this.height - this.blockSize
