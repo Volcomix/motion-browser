@@ -256,10 +256,10 @@ function processor(video) {
     drawBlock({ xCur, yCur }) {
       this.ctx.strokeStyle = '#0f0'
       this.ctx.strokeRect(xCur, yCur, this.blockSize, this.blockSize)
-      this.ctx.beginPath()
     }
 
     drawSpeed({ xCur, yCur, xRef, yRef }) {
+      this.ctx.beginPath()
       this.ctx.strokeStyle = '#f00'
       this.ctx.moveTo(xCur + this.halfBlockSize, yCur + this.halfBlockSize)
       this.ctx.lineTo(xRef + this.halfBlockSize, yRef + this.halfBlockSize)
