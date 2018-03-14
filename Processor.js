@@ -34,6 +34,8 @@ function processor(video) {
 
       this.xMax = this.width - this.blockSize
       this.yMax = this.height - this.blockSize
+      this.blocksWidth = this.xMax / this.blockSize - 1
+      this.blocksHeight = this.yMax / this.blockSize - 1
       this.blockSize2 = this.blockSize * this.blockSize
       this.halfBlockSize = this.blockSize / 2
     }
@@ -179,41 +181,43 @@ function processor(video) {
     }
 
     labelBlocks(blocks) {
-      const blocksWidth = this.xMax / this.blockSize - 1
-      const blocksHeight = this.yMax / this.blockSize - 1
       let label = 1
       const queue = []
-      for (let y = 0; y < blocksHeight; y++) {
-        for (let x = 0; x < blocksWidth; x++) {
-          const current = blocks[x + y * blocksWidth]
-          if (!current.hasMoved || current.label) {
+      for (let y = 0; y < this.blocksHeight; y++) {
+        for (let x = 0; x < this.blocksWidth; x++) {
+          let block = blocks[x + y * this.blocksWidth]
+          if (!block.hasMoved || block.label) {
             continue
           }
-          current.label = label
-          queue.push(current)
+          block.label = label
+          queue.push(block)
           while (queue.length) {
-            const block = queue.shift()
-            const x = block.xCur / this.blockSize - 1
-            const y = block.yCur / this.blockSize - 1
-            around.forEach(location => {
-              const xNeighbor = x + location.x
-              if (xNeighbor < 0 || xNeighbor >= blocksWidth) {
-                return
-              }
-              const yNeighbor = y + location.y
-              if (yNeighbor < 0 || yNeighbor >= blocksHeight) {
-                return
-              }
-              const neighbor = blocks[xNeighbor + yNeighbor * blocksWidth]
-              if (neighbor.hasMoved && !neighbor.label) {
-                neighbor.label = label
-                queue.push(neighbor)
-              }
-            })
+            block = queue.shift()
+            this.markNeighbors(queue, blocks, block, label)
           }
           label++
         }
       }
+    }
+
+    markNeighbors(queue, blocks, { xCur, yCur }, label) {
+      const x = xCur / this.blockSize - 1
+      const y = yCur / this.blockSize - 1
+      around.forEach(location => {
+        const xNeighbor = x + location.x
+        if (xNeighbor < 0 || xNeighbor >= this.blocksWidth) {
+          return
+        }
+        const yNeighbor = y + location.y
+        if (yNeighbor < 0 || yNeighbor >= this.blocksHeight) {
+          return
+        }
+        const block = blocks[xNeighbor + yNeighbor * this.blocksWidth]
+        if (block.hasMoved && !block.label) {
+          block.label = label
+          queue.push(block)
+        }
+      })
     }
 
     drawBlocks(blocks) {
