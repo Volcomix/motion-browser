@@ -24,7 +24,8 @@ function processor(video) {
       this.width = 32 * this.blockSize
       this.height = 24 * this.blockSize
       this.searchArea = 7
-      this.threshold = 14
+      this.zeroMotionBias = 4
+      this.neighborThreshold = 6
       this.showBlocks = true
       this.showSpeed = false
       this.showLabels = true
@@ -38,6 +39,7 @@ function processor(video) {
       this.blocksHeight = this.yMax / this.blockSize - 1
       this.blockSize2 = this.blockSize * this.blockSize
       this.halfBlockSize = this.blockSize / 2
+      this.neighborThreshold2 = this.neighborThreshold * this.neighborThreshold
     }
 
     get isPlaying() {
@@ -150,7 +152,7 @@ function processor(video) {
 
     searchLocation(stepSize, xCur, yCur, curFrame, refFrame) {
       const cost = this.getCost(curFrame, xCur, yCur, refFrame, xCur, yCur)
-      if (stepSize === 4 && cost < this.threshold) {
+      if (stepSize === 4 && cost < this.zeroMotionBias) {
         return
       }
       return around.reduce(
@@ -200,9 +202,9 @@ function processor(video) {
       }
     }
 
-    markNeighbors(queue, blocks, { xCur, yCur }, label) {
-      const x = xCur / this.blockSize - 1
-      const y = yCur / this.blockSize - 1
+    markNeighbors(queue, blocks, block, label) {
+      const x = block.xCur / this.blockSize - 1
+      const y = block.yCur / this.blockSize - 1
       around.forEach(location => {
         const xNeighbor = x + location.x
         if (xNeighbor < 0 || xNeighbor >= this.blocksWidth) {
@@ -212,12 +214,26 @@ function processor(video) {
         if (yNeighbor < 0 || yNeighbor >= this.blocksHeight) {
           return
         }
-        const block = blocks[xNeighbor + yNeighbor * this.blocksWidth]
-        if (block.hasMoved && !block.label) {
-          block.label = label
-          queue.push(block)
+        const neighbor = blocks[xNeighbor + yNeighbor * this.blocksWidth]
+        if (
+          neighbor.hasMoved &&
+          !neighbor.label &&
+          this.norm2(block, neighbor) < this.neighborThreshold2
+        ) {
+          neighbor.label = label
+          queue.push(neighbor)
         }
       })
+    }
+
+    norm2(block1, block2) {
+      const x1 = block1.xCur - block1.xRef
+      const y1 = block1.yCur - block1.yRef
+      const x2 = block2.xCur - block2.xRef
+      const y2 = block2.yCur - block2.yRef
+      const x = x1 - x2
+      const y = y1 - y2
+      return x * x + y * y
     }
 
     drawBlocks(blocks) {
