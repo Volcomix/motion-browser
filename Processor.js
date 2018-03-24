@@ -27,8 +27,10 @@ function processor(video) {
       this.zeroMotionBias = 4
       this.neighborThreshold = 6
       this.showBlocks = true
+      this.showBlocksBorders = false
       this.showSpeed = false
-      this.showLabels = true
+      this.showLabels = false
+      this.showColors = true
 
       /** 0 to requestAnimationFrame */
       this.period = 34
@@ -246,8 +248,12 @@ function processor(video) {
         if (!block.hasMoved) {
           return
         }
+        const hue = (block.label * 33) % 360
         if (this.showBlocks) {
-          this.drawBlock(block)
+          this.drawBlock(block, hue)
+        }
+        if (this.showBlocksBorders) {
+          this.drawBlockBorder(block, hue)
         }
         if (this.showSpeed) {
           this.drawSpeed(block)
@@ -258,8 +264,21 @@ function processor(video) {
       })
     }
 
-    drawBlock({ xCur, yCur }) {
-      this.ctx.strokeStyle = '#0f0'
+    drawBlock({ xCur, yCur }, hue) {
+      if (this.showColors) {
+        this.ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.5)`
+      } else {
+        this.ctx.fillStyle = 'rgba(0, 255, 0, 0.5)'
+      }
+      this.ctx.fillRect(xCur, yCur, this.blockSize, this.blockSize)
+    }
+
+    drawBlockBorder({ xCur, yCur }, hue) {
+      if (this.showColors) {
+        this.ctx.strokeStyle = `hsl(${hue}, 100%, 50%)`
+      } else {
+        this.ctx.strokeStyle = '#0f0'
+      }
       this.ctx.strokeRect(xCur, yCur, this.blockSize, this.blockSize)
     }
 
