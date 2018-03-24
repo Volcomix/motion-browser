@@ -80,17 +80,16 @@ function processor(video) {
       this.canvas.style.position = 'absolute'
       this.canvas.style['z-index'] = 99999
       this.canvas.style['pointer-events'] = 'none'
-      this.video.parentElement.appendChild(this.canvas)
+      document.body.appendChild(this.canvas)
       console.log('Processor canvas created')
     }
 
     startTimer() {
-      const childRect = this.video.getBoundingClientRect()
-      const parentRect = this.video.parentElement.getBoundingClientRect()
-      this.canvas.style.left = `${childRect.left - parentRect.left}px`
-      this.canvas.style.top = `${childRect.top - parentRect.top}px`
-      this.canvas.style.width = `${childRect.width}px`
-      this.canvas.style.height = `${childRect.height}px`
+      const rect = this.video.getBoundingClientRect()
+      this.canvas.style.left = `${rect.left}px`
+      this.canvas.style.top = `${rect.top}px`
+      this.canvas.style.width = `${rect.width}px`
+      this.canvas.style.height = `${rect.height}px`
       this.canvas.width = this.width
       this.canvas.height = this.height
       this.refCanvas.width = this.width
