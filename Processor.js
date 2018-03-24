@@ -68,10 +68,7 @@ function processor(video) {
       this.refCtx = this.refCanvas.getContext('2d')
 
       this.video.addEventListener('play', this.startTimer.bind(this))
-      if (this.isPlaying) {
-        console.log('Video is playing')
-        this.startTimer()
-      }
+      this.video.load()
     }
 
     createCanvas() {
