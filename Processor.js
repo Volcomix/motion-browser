@@ -75,16 +75,20 @@ function processor(video) {
     createCanvas() {
       this.canvas = document.createElement('canvas')
       this.canvas.id = canvasId
-      this.canvas.style.position = 'fixed'
-      this.canvas.style.bottom = '0'
-      this.canvas.style.width = '400px'
+      this.canvas.style.position = 'absolute'
       this.canvas.style['z-index'] = 99999
       this.canvas.style['pointer-events'] = 'none'
-      document.body.appendChild(this.canvas)
+      this.video.parentElement.appendChild(this.canvas)
       console.log('Processor canvas created')
     }
 
     startTimer() {
+      const childRect = this.video.getBoundingClientRect()
+      const parentRect = this.video.parentElement.getBoundingClientRect()
+      this.canvas.style.left = `${childRect.left - parentRect.left}px`
+      this.canvas.style.top = `${childRect.top - parentRect.top}px`
+      this.canvas.style.width = `${childRect.width}px`
+      this.canvas.style.height = `${childRect.height}px`
       this.canvas.width = this.width
       this.canvas.height = this.height
       this.refCanvas.width = this.width
@@ -237,6 +241,7 @@ function processor(video) {
     }
 
     drawBlocks(blocks) {
+      this.ctx.clearRect(0, 0, this.width, this.height)
       blocks.forEach(block => {
         if (!block.hasMoved) {
           return
