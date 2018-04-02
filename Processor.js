@@ -112,7 +112,7 @@ function processor(video) {
       const curFrame = this.ctx.getImageData(0, 0, this.width, this.height)
       const refFrame = this.refCtx.getImageData(0, 0, this.width, this.height)
       const blocks = this.searchMatchingBlocks(curFrame, refFrame)
-      const labelsCount = this.labelBlocks(blocks)
+      const labels = this.labelBlocks(blocks)
       this.drawBlocks(blocks)
       this.refCtx.putImageData(curFrame, 0, 0)
     }
@@ -187,6 +187,7 @@ function processor(video) {
     labelBlocks(blocks) {
       let label = 1
       const queue = []
+      const labels = {}
       for (let y = 0; y < this.blocksHeight; y++) {
         for (let x = 0; x < this.blocksWidth; x++) {
           let block = blocks[x + y * this.blocksWidth]
@@ -194,17 +195,19 @@ function processor(video) {
             continue
           }
           block.label = label
+          labels[label] = { count: 1 }
           queue.push(block)
           while (queue.length) {
             block = queue.shift()
-            this.markNeighbors(queue, blocks, block, label)
+            this.markNeighbors(queue, blocks, block, labels, label)
           }
           label++
         }
       }
+      return labels
     }
 
-    markNeighbors(queue, blocks, block, label) {
+    markNeighbors(queue, blocks, block, labels, label) {
       const x = block.xCur / this.blockSize - 1
       const y = block.yCur / this.blockSize - 1
       around.forEach(location => {
@@ -223,6 +226,7 @@ function processor(video) {
           this.norm2(block, neighbor) < this.neighborThreshold2
         ) {
           neighbor.label = label
+          labels[label].count++
           queue.push(neighbor)
         }
       })
